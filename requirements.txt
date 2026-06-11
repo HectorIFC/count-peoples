@@ -1,7 +1,7 @@
 # Install with: PIP_CONSTRAINT=$PWD/constraints.txt pip install -r requirements.txt
 # (the constraint works around the pkg_resources removal in setuptools >= 81)
 python-telegram-bot>=21.0
-torch>=2.1
+torch>=2.12.0
 ultralytics==8.1.0  # version required by MiVOLO
 opencv-python>=4.8
 omegaconf>=2.3  # referenced while unpickling the detector checkpoint
