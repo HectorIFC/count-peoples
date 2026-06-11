@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- GitHub Pages landing page (`docs/`) with live demos (sample photo/video),
+  terminal walkthroughs for local and VPS setup, Telegram configuration guide
+  and project metrics — responsive on any screen size
+
 - Telegram bot that counts people in photos (single frame) and videos (unique
   people via tracking) using MiVOLO, with age group / gender demographics
 - Replies localized in Portuguese, English and Spanish, picked from each

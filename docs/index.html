@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>count-peoples — people counting Telegram bot</title>
+<meta name="description" content="Privacy-first Telegram bot that counts people in photos and videos with MiVOLO (YOLOv8) — age/gender demographics, replies in pt/en/es.">
+<link rel="icon" type="image/png" href="assets/logo.png">
+<meta property="og:title" content="count-peoples — people counting Telegram bot">
+<meta property="og:description" content="Send a photo or a video on Telegram, get the people count with age/gender demographics back. Privacy-first: media is deleted after analysis.">
+<meta property="og:image" content="https://hectorifc.github.io/count-peoples/assets/logo.png">
+<style>
+  :root {
+    --bg: #0b161d;
+    --bg-2: #0f2027;
+    --panel: #122631;
+    --panel-2: #16303d;
+    --border: #1f3d4c;
+    --text: #e8f0f4;
+    --muted: #9fb3c8;
+    --accent: #35e0c2;
+    --accent-dark: #1fae96;
+    --tg-blue: #2a9fd8;
+    --radius: 14px;
+    font-size: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  /* Grid items default to min-width:auto, letting wide <pre> lines push the
+     column past the viewport on phones; min-width:0 lets them shrink so the
+     terminal's own overflow-x scrollbar kicks in instead. */
+  .hero-grid > *, .demo-grid > *, .guide > *, .steps > *, .stats > *, .sec-grid > * { min-width: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre, .terminal { font-family: "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(11, 22, 29, .85); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner { display: flex; align-items: center; gap: 20px; padding: 12px 24px; max-width: 1080px; margin: 0 auto; }
+  .nav-inner img { width: 34px; height: 34px; border-radius: 8px; }
+  .nav-inner .brand { font-weight: 700; margin-right: auto; color: var(--text); }
+  .nav-inner a.nav-link { color: var(--muted); font-size: .92rem; white-space: nowrap; }
+  .nav-inner a.nav-link:hover { color: var(--accent); text-decoration: none; }
+  @media (max-width: 820px) { .nav-links-extra { display: none; } }
+  @media (max-width: 560px) {
+    .nav-inner { gap: 14px; padding: 12px 16px; }
+    .nav-inner a.nav-link { display: none; }
+    .nav-inner a.nav-link:last-child { display: inline; } /* keep GitHub */
+  }
+
+  /* ---------- hero ---------- */
+  header.hero {
+    background: radial-gradient(1100px 500px at 70% -10%, #1d4456 0%, transparent 60%), linear-gradient(180deg, var(--bg-2), var(--bg));
+    padding: clamp(48px, 9vw, 84px) 0 clamp(40px, 7vw, 64px);
+  }
+  .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(28px, 5vw, 48px); align-items: center; }
+  @media (max-width: 880px) { .hero-grid { grid-template-columns: 1fr; } }
+  .hero h1 { font-size: clamp(1.7rem, 5.2vw, 2.6rem); line-height: 1.15; letter-spacing: -.02em; }
+  .hero h1 em { color: var(--accent); font-style: normal; }
+  .hero p.lead { color: var(--muted); margin: 18px 0 26px; font-size: clamp(1rem, 2.6vw, 1.12rem); max-width: 34rem; }
+  .badges { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; }
+  .badge {
+    border: 1px solid var(--border); background: var(--panel);
+    border-radius: 999px; padding: 5px 14px; font-size: .85rem; color: var(--muted);
+  }
+  .badge b { color: var(--accent); font-weight: 600; }
+  .cta { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 12px 22px; border-radius: 10px; font-weight: 600;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover { transform: translateY(-2px); text-decoration: none; }
+  .btn-primary { background: var(--accent); color: #06251f; box-shadow: 0 6px 24px rgba(53, 224, 194, .25); }
+  .btn-ghost { border: 1px solid var(--border); color: var(--text); background: var(--panel); }
+
+  /* ---------- terminal ---------- */
+  .terminal {
+    background: #0a1219; border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .45); overflow: hidden; font-size: .86rem;
+  }
+  .terminal .bar {
+    display: flex; align-items: center; gap: 7px;
+    background: #101e28; padding: 10px 14px; border-bottom: 1px solid var(--border);
+  }
+  .terminal .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; } .dot-y { background: #febc2e; } .dot-g { background: #28c840; }
+  .terminal .bar span { color: var(--muted); font-size: .76rem; margin-left: 8px; }
+  .terminal pre { padding: 16px 18px; overflow-x: auto; line-height: 1.7; }
+  .t-prompt { color: var(--accent); }
+  .t-cmd { color: var(--text); }
+  .t-dim { color: #5d7585; }
+  .t-ok { color: #28c840; }
+  .t-info { color: var(--tg-blue); }
+  .cursor { display: inline-block; width: 8px; height: 1.05em; background: var(--accent); vertical-align: text-bottom; animation: blink 1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---------- sections ---------- */
+  section { padding: clamp(48px, 8vw, 72px) 0; }
+  section.alt { background: var(--bg-2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  h2.sec { font-size: clamp(1.4rem, 4vw, 1.9rem); letter-spacing: -.01em; margin-bottom: 10px; }
+  p.sec-sub { color: var(--muted); margin-bottom: clamp(26px, 5vw, 40px); max-width: 44rem; }
+  .kicker { color: var(--accent); font-weight: 700; text-transform: uppercase; font-size: .78rem; letter-spacing: .12em; margin-bottom: 10px; }
+
+  /* ---------- numbers ---------- */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 880px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .stats { grid-template-columns: 1fr; } }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 26px 24px;
+  }
+  .stat .num { font-size: 2.3rem; font-weight: 800; color: var(--accent); letter-spacing: -.02em; }
+  .stat .lbl { color: var(--muted); font-size: .95rem; margin-top: 4px; }
+
+  /* ---------- steps ---------- */
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  @media (max-width: 880px) { .steps { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .steps { grid-template-columns: 1fr; } }
+  .step { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+  .step .n {
+    width: 34px; height: 34px; border-radius: 50%; background: rgba(53, 224, 194, .12);
+    color: var(--accent); font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+  }
+  .step h3 { font-size: 1.02rem; margin-bottom: 6px; }
+  .step p { color: var(--muted); font-size: .92rem; }
+
+  /* ---------- demo ---------- */
+  .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 880px) { .demo-grid { grid-template-columns: 1fr; } }
+  .demo-media img, .demo-media video {
+    width: 100%; border-radius: var(--radius); border: 1px solid var(--border); display: block;
+    background: #fff;
+  }
+  .demo-media figcaption { color: var(--muted); font-size: .84rem; margin-top: 10px; text-align: center; }
+
+  /* ---------- telegram chat mockup ---------- */
+  .chat {
+    background: linear-gradient(160deg, #11202b, #0d1a23);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; max-width: 430px;
+  }
+  @media (max-width: 880px) { .chat { max-width: 100%; } }
+  .chat .msg { max-width: 86%; margin-bottom: 12px; padding: 10px 14px; border-radius: 14px; font-size: .9rem; }
+  .chat .from-user { background: var(--tg-blue); color: #fff; margin-left: auto; border-bottom-right-radius: 4px; }
+  .chat .from-bot { background: var(--panel-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .chat .from-user img { width: 100%; border-radius: 9px; margin-bottom: 6px; display: block; background: #fff; }
+  .chat .caption { font-size: .84rem; opacity: .95; }
+  .chat pre { font-size: .82rem; line-height: 1.65; white-space: pre-wrap; }
+  .chat .time { display: block; font-size: .68rem; opacity: .6; text-align: right; margin-top: 4px; }
+
+  /* ---------- result card ---------- */
+  .result-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+  .result-card h3 { margin-bottom: 14px; font-size: 1.05rem; }
+  .result-row { display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding: 8px 0; font-size: .94rem; }
+  .result-row:last-child { border-bottom: 0; }
+  .result-row .v { color: var(--accent); font-weight: 700; }
+
+  /* ---------- security list ---------- */
+  .sec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 880px) { .sec-grid { grid-template-columns: 1fr; } }
+  .sec-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; }
+  .sec-card h3 { font-size: .98rem; margin-bottom: 6px; }
+  .sec-card h3::before { content: "🛡 "; }
+  .sec-card p { color: var(--muted); font-size: .9rem; }
+
+  /* ---------- two col guides ---------- */
+  .guide { display: grid; grid-template-columns: .85fr 1.15fr; gap: 32px; align-items: start; margin-bottom: 56px; }
+  @media (max-width: 880px) { .guide { grid-template-columns: 1fr; } }
+  .guide:last-child { margin-bottom: 0; }
+  .guide h3 { font-size: 1.3rem; margin-bottom: 10px; }
+  .guide p, .guide li { color: var(--muted); font-size: .96rem; }
+  .guide ol { padding-left: 20px; display: grid; gap: 8px; margin-top: 10px; }
+  .guide code.inline { background: var(--panel-2); border: 1px solid var(--border); padding: 1px 7px; border-radius: 6px; font-size: .84em; color: var(--text); }
+
+  /* ---------- reveal ---------- */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.on { opacity: 1; transform: none; }
+
+  footer { border-top: 1px solid var(--border); padding: 36px 0; color: var(--muted); font-size: .9rem; }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+  /* ---------- small phones ---------- */
+  @media (max-width: 420px) {
+    .wrap { padding: 0 16px; }
+    .terminal { font-size: .76rem; }
+    .terminal pre { padding: 12px 14px; }
+    .btn { width: 100%; text-align: center; }
+    .cta { flex-direction: column; }
+    .stat .num { font-size: 1.9rem; }
+    .badges { gap: 8px; }
+    .badge { font-size: .78rem; padding: 4px 11px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <img src="assets/logo.png" alt="count-peoples logo">
+    <span class="brand">count-peoples</span>
+    <a class="nav-link" href="#demo">Demo</a>
+    <a class="nav-link" href="#numbers">Numbers</a>
+    <a class="nav-link nav-links-extra" href="#local">Run locally</a>
+    <a class="nav-link nav-links-extra" href="#vps">VPS</a>
+    <a class="nav-link nav-links-extra" href="#telegram">Telegram</a>
+    <a class="nav-link" href="https://github.com/HectorIFC/count-peoples">GitHub ↗</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <h1>Count people in photos and videos, <em>right from Telegram</em></h1>
+      <p class="lead">
+        Send a photo or a short video to your bot and get back the people count
+        with age group and gender demographics — powered by
+        <a href="https://github.com/WildChlamydia/MiVOLO">MiVOLO</a> (YOLOv8 + transformer).
+        Privacy-first: media is deleted right after the analysis.
+      </p>
+      <div class="badges">
+        <span class="badge"><b>v0.0.1</b> released</span>
+        <span class="badge"><b>100%</b> test coverage</span>
+        <span class="badge"><b>3</b> languages (pt·en·es)</span>
+        <span class="badge"><b>MIT</b> license</span>
+      </div>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/HectorIFC/count-peoples">View on GitHub</a>
+        <a class="btn btn-ghost" href="#local">Get started →</a>
+      </div>
+    </div>
+    <div class="terminal" id="hero-terminal">
+      <div class="bar">
+        <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
+        <span>bot — python3</span>
+      </div>
+      <pre id="hero-term-body"><span class="t-prompt">$</span> <span class="t-cmd">python3 bot.py</span>
+</pre>
+    </div>
+  </div>
+</header>
+
+<!-- ================= how it works ================= -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal">How it works</div>
+    <h2 class="sec reveal">From a Telegram message to a head count</h2>
+    <p class="sec-sub reveal">No camera integration, no dashboards to deploy — the chat you already use is the interface.</p>
+    <div class="steps">
+      <div class="step reveal"><div class="n">1</div><h3>Send media</h3><p>A photo, or a slow 20–30s pan video, sent to your private bot on Telegram.</p></div>
+      <div class="step reveal"><div class="n">2</div><h3>Detect</h3><p>YOLOv8 finds every person and face in the scene — bodies and faces are matched.</p></div>
+      <div class="step reveal"><div class="n">3</div><h3>Estimate</h3><p>MiVOLO estimates age and gender per person; videos track <i>unique</i> people across frames.</p></div>
+      <div class="step reveal"><div class="n">4</div><h3>Reply &amp; log</h3><p>You get the summary in chat; only aggregated numbers go to a CSV history. Media is deleted.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= demo ================= -->
+<section class="alt" id="demo">
+  <div class="wrap">
+    <div class="kicker reveal">Live demo</div>
+    <h2 class="sec reveal">Real photo, real output</h2>
+    <p class="sec-sub reveal">The exact summary below was produced by the bot for this public sample photo — 13 people found, all 13 with demographics.</p>
+
+    <div class="demo-grid">
+      <figure class="demo-media reveal">
+        <img src="assets/peoples.jpg" alt="Sample photo: group of people">
+        <figcaption>Public sample photo (<code>peoples.jpg</code>) — also used by the integration tests</figcaption>
+      </figure>
+
+      <div class="chat reveal">
+        <div class="msg from-user">
+          <img src="assets/peoples.jpg" alt="photo sent to the bot">
+          <span class="caption">Sunday meeting</span>
+          <span class="time">14:32 ✓✓</span>
+        </div>
+        <div class="msg from-bot">Photo received, analyzing...<span class="time">14:32</span></div>
+        <div class="msg from-bot"><pre>Summary - Sunday meeting
+Total people: 13
+With estimated demographics: 13
+
+Children: 0 M, 1 F
+Adults: 4 M, 8 F</pre><span class="time">14:32</span></div>
+      </div>
+    </div>
+
+    <div style="height:56px"></div>
+
+    <h2 class="sec reveal">Videos count <i>unique</i> people</h2>
+    <p class="sec-sub reveal">A person that appears in 300 frames is still one person: the tracker follows each individual across the pan, drops noisy tracks, and aggregates age by median and gender by majority vote.</p>
+
+    <div class="demo-grid">
+      <figure class="demo-media reveal">
+        <video src="assets/peoples.mp4" controls muted loop playsinline></video>
+        <figcaption>Public sample video (<code>peoples.mp4</code>) — 13.7s, 343 frames @ 25 fps</figcaption>
+      </figure>
+
+      <div class="result-card reveal">
+        <h3>Tracking result</h3>
+        <div class="result-row"><span>Duration</span><span class="v">13.7 s</span></div>
+        <div class="result-row"><span>Frames processed</span><span class="v">343</span></div>
+        <div class="result-row"><span>Unique people tracked</span><span class="v">37</span></div>
+        <div class="result-row"><span>Demographics estimated</span><span class="v">37 / 37</span></div>
+        <div class="result-row"><span>Inbound ports opened</span><span class="v">0</span></div>
+        <p style="color:var(--muted); font-size:.85rem; margin-top:14px">
+          Tracks shorter than 3 frames are discarded as tracker noise, so ID switches don't inflate the count.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= numbers ================= -->
+<section id="numbers">
+  <div class="wrap">
+    <div class="kicker reveal">The numbers</div>
+    <h2 class="sec reveal">Small bot, serious engineering</h2>
+    <p class="sec-sub reveal">Every number below is reproducible from the repository.</p>
+    <div class="stats">
+      <div class="stat reveal"><div class="num" data-count="100" data-suffix="%">0%</div><div class="lbl">test coverage — 103 tests, gate at 80% in CI</div></div>
+      <div class="stat reveal"><div class="num" data-count="37">0</div><div class="lbl">unique people tracked in a single 14s video</div></div>
+      <div class="stat reveal"><div class="num" data-count="13">0</div><div class="lbl">people counted in one photo, all with demographics</div></div>
+      <div class="stat reveal"><div class="num" data-count="3">0</div><div class="lbl">reply languages — pt, en, es — picked per sender</div></div>
+      <div class="stat reveal"><div class="num" data-count="0">0</div><div class="lbl">inbound ports — long polling only, nothing exposed</div></div>
+      <div class="stat reveal"><div class="num" data-count="2" data-suffix="–5s">0</div><div class="lbl">per photo on Apple Silicon (15–40s on a CPU VPS)</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= run locally ================= -->
+<section class="alt" id="local">
+  <div class="wrap">
+    <div class="kicker reveal">Get started</div>
+    <h2 class="sec reveal">Run it locally (macOS / Linux)</h2>
+    <p class="sec-sub reveal">Five commands from clone to a running bot. The first run downloads ~250 MB of model weights and verifies their SHA256 before loading.</p>
+
+    <div class="guide">
+      <div class="reveal">
+        <h3>1 · Install</h3>
+        <p>Python 3.12 is recommended (<code class="inline">brew install python@3.12</code>).
+          The <code class="inline">PIP_CONSTRAINT</code> works around a MiVOLO build quirk with
+          modern setuptools — it's already in the repo.</p>
+        <h3 style="margin-top:26px">2 · Configure</h3>
+        <p>Copy <code class="inline">.env.example</code> to <code class="inline">.env</code>,
+          fill in your bot token and your Telegram user id. The file stays out of git and
+          readable only by you.</p>
+        <h3 style="margin-top:26px">3 · Run</h3>
+        <p>Send <code class="inline">/start</code> to your bot, then a photo. That's it.</p>
+      </div>
+      <div class="terminal reveal">
+        <div class="bar">
+          <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
+          <span>zsh — local setup</span>
+        </div>
+        <pre><span class="t-prompt">$</span> <span class="t-cmd">git clone https://github.com/HectorIFC/count-peoples && cd count-peoples</span>
+<span class="t-prompt">$</span> <span class="t-cmd">python3.12 -m venv .venv && source .venv/bin/activate</span>
+<span class="t-prompt">$</span> <span class="t-cmd">PIP_CONSTRAINT=$PWD/constraints.txt pip install -r requirements.txt</span>
+<span class="t-dim"># ... resolves torch (MPS on Apple Silicon), MiVOLO, OpenCV ...</span>
+<span class="t-prompt">$</span> <span class="t-cmd">cp .env.example .env && chmod 600 .env && $EDITOR .env</span>
+<span class="t-prompt">$</span> <span class="t-cmd">set -a && source .env && set +a && python3 bot.py</span>
+<span class="t-info">INFO</span> Loading models (first run downloads ~250 MB)...
+<span class="t-info">INFO</span> Models ready (device: mps).
+<span class="t-ok">INFO Bot running (long polling). Ctrl+C to stop.</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= vps ================= -->
+<section id="vps">
+  <div class="wrap">
+    <div class="kicker reveal">Always on</div>
+    <h2 class="sec reveal">Run it on a VPS</h2>
+    <p class="sec-sub reveal">The bot only makes <b>outbound</b> TLS connections to <code class="inline">api.telegram.org</code> — no webhook, no reverse proxy, no port to expose. Lock the box down and let systemd keep it alive.</p>
+
+    <div class="guide">
+      <div class="reveal">
+        <h3>Harden first</h3>
+        <p>Key-only SSH, default-deny firewall, brute-force protection and automatic
+          security patches. The full hardened systemd unit (sandboxed with
+          <code class="inline">ProtectSystem=strict</code>, secrets via root-only
+          <code class="inline">EnvironmentFile</code>) is in the
+          <a href="https://github.com/HectorIFC/count-peoples#5-keep-the-bot-running">README</a>.</p>
+        <ol>
+          <li>Create a dedicated no-shell user (<code class="inline">peoplebot</code>)</li>
+          <li>Install with CPU-only torch (~10× smaller than the CUDA package)</li>
+          <li>Enable the <code class="inline">people-counter</code> systemd service</li>
+        </ol>
+      </div>
+      <div class="terminal reveal">
+        <div class="bar">
+          <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
+          <span>ssh — ubuntu vps</span>
+        </div>
+        <pre><span class="t-dim"># firewall: deny everything inbound except SSH</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo ufw default deny incoming && sudo ufw allow OpenSSH && sudo ufw enable</span>
+<span class="t-dim"># CPU-only torch, then the project deps</span>
+<span class="t-prompt">$</span> <span class="t-cmd">pip install torch --index-url https://download.pytorch.org/whl/cpu</span>
+<span class="t-prompt">$</span> <span class="t-cmd">PIP_CONSTRAINT=$PWD/constraints.txt pip install -r requirements.txt</span>
+<span class="t-dim"># secrets root-only, service sandboxed</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo install -m 600 -o root -g root /dev/null /etc/people-counter/env</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo systemctl enable --now people-counter</span>
+<span class="t-ok">● people-counter.service — active (running)</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= telegram setup ================= -->
+<section class="alt" id="telegram">
+  <div class="wrap">
+    <div class="kicker reveal">Telegram</div>
+    <h2 class="sec reveal">Create and lock your bot</h2>
+    <p class="sec-sub reveal">Two chats with official Telegram bots and one line in your <code class="inline">.env</code>. The allowlist is mandatory — the bot refuses to start without it and silently ignores anyone else.</p>
+
+    <div class="demo-grid">
+      <div class="chat reveal">
+        <div class="msg from-user">/newbot<span class="time">14:20 ✓✓</span></div>
+        <div class="msg from-bot">Alright, a new bot. How are we going to call it?<span class="time">14:20</span></div>
+        <div class="msg from-user">People Counter<span class="time">14:21 ✓✓</span></div>
+        <div class="msg from-bot">Done! Use this token to access the HTTP API:<br><code>8613…:AAF…</code> 🔑<span class="time">14:21</span></div>
+        <div class="msg from-bot" style="opacity:.75"><i>@userinfobot</i>: Your id: <code>111111111</code><span class="time">14:22</span></div>
+      </div>
+      <div class="reveal">
+        <h3 style="font-size:1.3rem; margin-bottom:10px">Three steps</h3>
+        <ol style="padding-left:20px; display:grid; gap:10px; color:var(--muted)">
+          <li>Talk to <b>@BotFather</b> → <code class="inline">/newbot</code> → save the <b>token</b> (it's a secret — only in <code class="inline">.env</code>, never in git or chats).</li>
+          <li>Talk to <b>@userinfobot</b> → get your numeric <b>user id</b>.</li>
+          <li>Put both in <code class="inline">.env</code>:<br>
+            <code class="inline">TELEGRAM_BOT_TOKEN=…</code><br>
+            <code class="inline">ALLOWED_USER_IDS=111111111</code></li>
+        </ol>
+        <p style="color:var(--muted); margin-top:14px">Optional: send <code class="inline">/setuserpic</code> to @BotFather and upload
+          <a href="https://github.com/HectorIFC/count-peoples/blob/main/assets/logo.png">the project logo</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= security ================= -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal">Privacy &amp; security</div>
+    <h2 class="sec reveal">Designed to not leak anything</h2>
+    <p class="sec-sub reveal">OWASP-guided hardening, verified by tests.</p>
+    <div class="sec-grid">
+      <div class="sec-card reveal"><h3>Media never persists</h3><p>Photos and videos are processed in a temporary directory and deleted right after. Only aggregated numbers reach the CSV (created with mode 600).</p></div>
+      <div class="sec-card reveal"><h3>Fail-closed allowlist</h3><p>No <code>ALLOWED_USER_IDS</code>, no startup. Strangers get no reply at all — the bot never confirms it exists; attempts are only logged.</p></div>
+      <div class="sec-card reveal"><h3>SHA256-pinned models</h3><p>Weights are pickle-loaded, so every startup verifies their SHA256 against pinned hashes. Tampered file → deleted → abort.</p></div>
+      <div class="sec-card reveal"><h3>Zero attack surface</h3><p>Long polling means outbound-only TLS to api.telegram.org. No webhook, no open port, nothing for strangers to scan.</p></div>
+      <div class="sec-card reveal"><h3>Injection-proof history</h3><p>Captions are truncated, stripped of control characters and formula prefixes before touching the CSV.</p></div>
+      <div class="sec-card reveal"><h3>Secrets stay secret</h3><p>Token only via environment; <code>.env</code> is gitignored and chmod 600; the httpx logger is silenced so the token never reaches logs.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>MIT License · built on <a href="https://github.com/WildChlamydia/MiVOLO">MiVOLO</a> &amp; <a href="https://github.com/python-telegram-bot/python-telegram-bot">python-telegram-bot</a></span>
+    <span><a href="https://github.com/HectorIFC/count-peoples">github.com/HectorIFC/count-peoples</a></span>
+  </div>
+</footer>
+
+<script>
+  // Hero terminal: typed startup sequence
+  const heroLines = [
+    { html: '<span class="t-info">INFO</span> Loading models (first run downloads ~250 MB)...', delay: 900 },
+    { html: '<span class="t-info">INFO</span> Models ready (device: <span class="t-ok">mps</span>).', delay: 1400 },
+    { html: '<span class="t-ok">INFO Bot running (long polling). Ctrl+C to stop.</span>', delay: 800 },
+    { html: '<span class="t-dim">— photo received from allowlisted user —</span>', delay: 1600 },
+    { html: '<span class="t-prompt">→</span> Summary - Sunday meeting · <span class="t-ok">13 people</span>', delay: 1100 },
+  ];
+  const termBody = document.getElementById('hero-term-body');
+  let li = 0;
+  function typeNext() {
+    if (li >= heroLines.length) { termBody.insertAdjacentHTML('beforeend', '<span class="cursor"></span>'); return; }
+    const line = heroLines[li++];
+    setTimeout(() => { termBody.insertAdjacentHTML('beforeend', line.html + '\n'); typeNext(); }, line.delay);
+  }
+  typeNext();
+
+  // Scroll reveal
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); } });
+  }, { threshold: .12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // Count-up animation for the numbers section
+  const counters = document.querySelectorAll('.num[data-count]');
+  const cio = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      cio.unobserve(e.target);
+      const el = e.target, target = +el.dataset.count, suffix = el.dataset.suffix || '';
+      const t0 = performance.now(), dur = 1100;
+      (function tick(now) {
+        const p = Math.min((now - t0) / dur, 1);
+        el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))) + suffix;
+        if (p < 1) requestAnimationFrame(tick);
+      })(t0);
+    });
+  }, { threshold: .4 });
+  counters.forEach(el => cio.observe(el));
+</script>
+</body>
+</html>
