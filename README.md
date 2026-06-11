@@ -2,6 +2,8 @@
 
 <img src="assets/logo.png" alt="Bot logo" width="160" align="right">
 
+**[Project site →](https://hectorifc.github.io/count-peoples/)**
+
 
 Telegram bot that receives photos and videos, counts the people in the scene
 with [MiVOLO](https://github.com/WildChlamydia/MiVOLO) (age and gender estimated
